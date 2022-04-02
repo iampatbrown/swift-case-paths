@@ -50,7 +50,7 @@ extension CasePath where Value == Void {
 @available(
   *, deprecated,
   message:
-    "Use case path literal syntax (e.g., '/Root.caseName'), or '(/Root.caseName).extract(from:)'"
+  "Use case path literal syntax (e.g., '/Root.caseName'), or '(/Root.caseName).extract(from:)'"
 )
 public func extract<Root, Value>(case embed: @escaping (Value) -> Root, from root: Root) -> Value? {
   CasePaths.extract(embed)(root)
@@ -75,7 +75,7 @@ public func extract<Root, Value>(case embed: @escaping (Value) -> Root, from roo
 @available(
   *, deprecated,
   message:
-    "Use case path literal syntax (e.g., '/Root.caseName'), or '(/Root.caseName).extract(from:)'"
+  "Use case path literal syntax (e.g., '/Root.caseName'), or '(/Root.caseName).extract(from:)'"
 )
 public func extract<Root, Value>(case embed: @escaping (Value) -> Root?, from root: Root?) -> Value?
 {
@@ -249,9 +249,9 @@ extension Strategy {
 
     var shouldWorkAroundSR12044: Bool {
       #if compiler(<5.2)
-        return true
+      return true
       #else
-        return false
+      return false
       #endif
     }
 
@@ -270,7 +270,8 @@ extension Strategy {
       // Drop payload label from metadata, e.g., treat `(foo: Foo)` as `Foo`.
       self.init(tag: tag, assumedAssociatedValueType: avMetadata.element(at: 0).type)
 
-    } else if let avMetadata = TupleMetadata(avType),
+    } else if
+      let avMetadata = TupleMetadata(avType),
       let valueMetadata = TupleMetadata(Value.self),
       valueMetadata.labels == nil
     {
@@ -311,11 +312,11 @@ extension Strategy {
   init(nonExistentialTag tag: UInt32) {
     self =
       EnumMetadata(assumingEnum: Enum.self)
-        .typeDescriptor
-        .fieldDescriptor!
-        .field(atIndex: tag)
-        .flags
-        .contains(.isIndirectCase)
+      .typeDescriptor
+      .fieldDescriptor!
+      .field(atIndex: tag)
+      .flags
+      .contains(.isIndirectCase)
       ? .indirect
       : .direct
   }
@@ -325,18 +326,18 @@ extension Strategy {
     case .direct:
       return self.withProjectedPayload(of: root, tag: tag) { $0.load(as: Value.self) }
 
-    case let .existential(extract):
+    case .existential(let extract):
       return extract(root) as? Value
 
     case .indirect:
       return self.withProjectedPayload(of: root, tag: tag) {
         $0
-          .load(as: UnsafeRawPointer.self)  // Load the heap object pointer.
-          .advanced(by: 2 * pointerSize)  // Skip the heap object header.
+          .load(as: UnsafeRawPointer.self) // Load the heap object pointer.
+          .advanced(by: 2 * pointerSize) // Skip the heap object header.
           .load(as: Value.self)
       }
 
-    case let .optional(extract):
+    case .optional(let extract):
       return extract(root)
 
     case .unimplemented:
@@ -401,7 +402,7 @@ private struct EnumMetadata: Metadata {
   }
 
   var genericArguments: GenericArgumentVector? {
-    guard typeDescriptor.flags.contains(.isGeneric) else { return nil }
+    guard self.typeDescriptor.flags.contains(.isGeneric) else { return nil }
     return .init(ptr: self.ptr.advanced(by: 2 * pointerSize))
   }
 
@@ -489,24 +490,24 @@ private struct TupleMetadata: Metadata {
 
   var elementCount: UInt {
     self.ptr
-      .advanced(by: pointerSize)  // kind
+      .advanced(by: pointerSize) // kind
       .load(as: UInt.self)
   }
 
   var labels: UnsafePointer<UInt8>? {
     self.ptr
-      .advanced(by: pointerSize)  // kind
-      .advanced(by: pointerSize)  // elementCount
+      .advanced(by: pointerSize) // kind
+      .advanced(by: pointerSize) // elementCount
       .load(as: UnsafePointer<UInt8>?.self)
   }
 
   func element(at i: Int) -> Element {
     Element(
       ptr:
-        self.ptr
-        .advanced(by: pointerSize)  // kind
-        .advanced(by: pointerSize)  // elementCount
-        .advanced(by: pointerSize)  // labels pointer
+      self.ptr
+        .advanced(by: pointerSize) // kind
+        .advanced(by: pointerSize) // elementCount
+        .advanced(by: pointerSize) // labels pointer
         .advanced(by: i * 2 * pointerSize)
     )
   }
@@ -593,7 +594,7 @@ private struct MangledTypeName {
       case 0x01...0x17:
         // Relative symbolic reference
         ptr = ptr.advanced(by: 5)
-      case 0x18...0x1f:
+      case 0x18...0x1F:
         // Absolute symbolic reference
         ptr = ptr.advanced(by: 1 + pointerSize)
       default:
@@ -613,16 +614,14 @@ private struct ValueWitnessTable {
 
   // This witness transforms an enum value into its associated value, in place.
   var destructiveProjectEnumData:
-    @convention(c) (_ value: UnsafeMutableRawPointer, _ metadata: UnsafeRawPointer) -> Void
-  {
+    @convention(c) (_ value: UnsafeMutableRawPointer, _ metadata: UnsafeRawPointer) -> Void {
     self.ptr.advanced(by: 11 * pointerSize + 2 * 4).loadInferredType()
   }
 
   // This witness transforms an associated value into its enum value, in place.
   var destructiveInjectEnumData:
     @convention(c) (_ value: UnsafeMutableRawPointer, _ tag: UInt32, _ metadata: UnsafeRawPointer)
-      -> Void
-  {
+    -> Void {
     self.ptr.advanced(by: 12 * pointerSize + 2 * 4).loadInferredType()
   }
 }
@@ -650,3 +649,146 @@ extension UnsafeRawPointer {
 
 // This is the size of any Unsafe*Pointer and also the size of Int and UInt.
 private let pointerSize = MemoryLayout<UnsafeRawPointer>.size
+
+func embedHelp<Root, Value>(
+  type valueType: Value.Type,
+  into rootType: Root.Type,
+  caseName: String
+) -> ((Value) -> Root)? {
+  guard let metadata = EnumMetadata(Root.self) else {
+    assertionFailure("rootType must be an enum")
+    return nil
+  }
+
+  let tag = metadata.tag(forName: caseName)
+
+  // TODO: Handle empty enums
+
+  // TODO: https://github.com/apple/swift/blob/main/docs/ABI/TypeLayout.rst
+  return { value in
+    var value = value
+    return withUnsafeMutableBytes(of: &value) { rawBuffer in
+      let pointer = rawBuffer.baseAddress!
+      metadata.destructivelyInjectTag(UInt32(tag), intoPayload: pointer)
+      defer { metadata.destructivelyProjectPayload(of: pointer) }
+      return pointer.load(as: Root.self)
+    }
+  }
+}
+
+struct FieldName: CustomStringConvertible {
+  let ptr: UnsafePointer<UInt8>
+
+  var description: String {
+    String(cString: self.ptr)
+  }
+}
+
+extension FieldRecord {
+  var fieldName: FieldName? {
+    self.ptr
+      .advanced(by: 8)
+      .loadRelativePointer()
+      .map { FieldName(ptr: $0.assumingMemoryBound(to: UInt8.self)) }
+  }
+}
+
+struct Case {
+  let name: String
+  let payloadType: Any.Type?
+}
+
+extension EnumMetadata {
+  var cases: [Case] {
+    guard let fieldDescriptor = self.typeDescriptor.fieldDescriptor else { return [] }
+    let numberOfCases = self.typeDescriptor.emptyCaseCount + self.typeDescriptor.payloadCaseCount
+    return (0..<numberOfCases).compactMap { i in
+      let record = fieldDescriptor.field(atIndex: i)
+      guard let name = record.fieldName?.description else { return nil }
+      let payloadType = record.typeName.flatMap {
+        swift_getTypeByMangledNameInContext(
+          $0.ptr, $0.length,
+          genericContext: self.typeDescriptor.ptr,
+          genericArguments: self.genericArguments?.ptr
+        )
+      }
+      return Case(name: name, payloadType: payloadType)
+    }
+  }
+
+  var payloadCases: [Case] { cases.filter { $0.payloadType != nil } }
+
+  var emptyCases: [Case] { cases.filter { $0.payloadType == nil } }
+
+  func tag(forName name: String) -> Int {
+    payloadCases.firstIndex(where: { $0.name == name }) ?? payloadCases.count
+  }
+
+  func emptyPayloadDiscriminator(forName name: String) -> Int? {
+    emptyCases.firstIndex(where: { $0.name == name })
+  }
+}
+
+// Struct for KeyPath
+
+extension MetadataKind {
+  static var `struct`: Self { .init(rawValue: 1) }
+  static var nonHeap: Self { .init(rawValue: 0x200) }
+}
+
+private struct StructMetadata: Metadata {
+  let ptr: UnsafeRawPointer
+
+  init(assumingStruct type: Any.Type) {
+    self.ptr = unsafeBitCast(type, to: UnsafeRawPointer.self)
+  }
+
+  init?(_ type: Any.Type) {
+    self.init(assumingStruct: type)
+    guard self.kind == .struct || self.kind == .nonHeap else { return nil }
+  }
+
+  var typeDescriptor: StructTypeDescriptor {
+    StructTypeDescriptor(
+      ptr: self.ptr.load(fromByteOffset: pointerSize, as: UnsafeRawPointer.self)
+    )
+  }
+
+  var fieldOffsets: UnsafeBufferPointer<UInt32> {
+    let count = self.typeDescriptor.fieldCount
+    let offset = self.typeDescriptor.offsetToTheFieldOffsetVector
+    let start = self.ptr.advanced(by: Int(offset) * pointerSize)
+      .assumingMemoryBound(to: UInt32.self)
+    return UnsafeBufferPointer(start: start, count: Int(count))
+  }
+
+  func field(atOffset offset: Int) -> FieldRecord? {
+    guard let fieldIndex = self.fieldOffsets.firstIndex(of: UInt32(offset)) else { return nil }
+    return self.typeDescriptor.fieldDescriptor?.field(atIndex: UInt32(fieldIndex))
+  }
+}
+
+private struct StructTypeDescriptor: Equatable {
+  let ptr: UnsafeRawPointer
+
+  var fieldDescriptor: FieldDescriptor? {
+    self.ptr
+      .advanced(by: 4 * 4)
+      .loadRelativePointer()
+      .map(FieldDescriptor.init)
+  }
+
+  var fieldCount: UInt32 { self.ptr.load(fromByteOffset: 5 * 4, as: UInt32.self) & 0xFFFFFF }
+  var offsetToTheFieldOffsetVector: UInt32 { self.ptr.load(fromByteOffset: 6 * 4, as: UInt32.self) }
+}
+
+extension KeyPath {
+  var fieldName: String? {
+    guard
+      let offset = MemoryLayout<Root>.offset(of: self),
+      let metadata = StructMetadata(Root.self),
+      let fieldRecord = metadata.field(atOffset: offset)
+    else { return nil }
+    return fieldRecord.fieldName?.description
+  }
+}
