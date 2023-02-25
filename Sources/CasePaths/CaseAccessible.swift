@@ -49,7 +49,9 @@ extension CaseAccessible {
   }
 
   @_disfavoredOverload
+ 
   public subscript<Value>(casePath: CasePath<Root, Value>?) -> _OptionallyChained<Value>? {
+    // Note: using an optional case path removes ambiguity between -> Never?
     get { casePath?.extract(from: Self._get(self)).map { _OptionallyChained(value: $0) } }
     set {
       guard let newValue, let casePath else { return }
