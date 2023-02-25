@@ -1,30 +1,30 @@
-
-
 public protocol CaseAccessible {
   associatedtype Root = Self
-  var root: Root { get set }
+  static func _get(_ self: Self) -> Root
+  static func _set(into self: inout Self, _ root: Root)
 }
 
 @dynamicMemberLookup
-public struct CaseComponent<Root>: CaseAccessible {
-  public var root: Root
+public struct _CaseComponent<Root>: CaseAccessible {
+  var root: Root
 
   public subscript<Value>(dynamicMember keyPath: WritableKeyPath<Root, Value>) -> Value {
     _read { yield self.root[keyPath: keyPath] }
     _modify { yield &self.root[keyPath: keyPath] }
   }
+
+  public static func _get(_ self: Self) -> Root { self.root }
+  public static func _set(into self: inout Self, _ root: Root) { self.root = root }
 }
 
 extension CaseAccessible where Root == Self {
-  public var root: Root {
-    _read { yield self }
-    _modify { yield &self }
-  }
+  public static func _get(_ self: Self) -> Root { self }
+  public static func _set(into self: inout Self, _ root: Root) { self = root }
 }
 
 extension CaseAccessible {
   public subscript<Value>(casePath: CasePath<Root, Value>) -> Value? {
-    casePath.extract(from: self.root)
+    casePath.extract(from: Self._get(self))
   }
 
   @_disfavoredOverload
@@ -36,17 +36,23 @@ extension CaseAccessible {
   }
 
   @_disfavoredOverload
-  public subscript<Value>(casePath: CasePath<Root, Value>?) -> CaseComponent<Value>? {
-    get { casePath?.extract(from: self.root).map { CaseComponent(root: $0) } }
-    set {
-      guard let newValue, let casePath else { return }
-      self.root = casePath.embed(newValue.root)
+  public subscript<Value>(casePath: CasePath<Root, Value>?) -> _CaseComponent<Value>? {
+    get { casePath?.extract(from: Self._get(self)).map { _CaseComponent(root: $0) } }
+    _modify {
+      var component = casePath?.extract(from: Self._get(self)).map { _CaseComponent(root: $0) }
+      yield &component
+      guard let component, let casePath else { return }
+      Self._set(into: &self, casePath.embed(component.root))
     }
   }
 
-  public subscript<Value>(casePath: CasePath<Root, Value>) -> Value {
+  @_disfavoredOverload
+  public subscript<Value>(casePath: CasePath<Root, Value>?) -> Value {
     @available(*, unavailable, message: "only available as optional getter")
     get { fatalError() }
-    set { self.root = casePath.embed(newValue) }
+    set {
+      guard let casePath else { return }
+      Self._set(into: &self, casePath.embed(newValue))
+    }
   }
 }
