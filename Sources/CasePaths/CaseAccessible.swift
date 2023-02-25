@@ -49,10 +49,10 @@ extension CaseAccessible {
   }
 
   @_disfavoredOverload
-  public subscript<Value>(casePath: CasePath<Root, Value>) -> _OptionallyChained<Value>? {
-    get { casePath.extract(from: Self._get(self)).map { _OptionallyChained(value: $0) } }
+  public subscript<Value>(casePath: CasePath<Root, Value>?) -> _OptionallyChained<Value>? {
+    get { casePath?.extract(from: Self._get(self)).map { _OptionallyChained(value: $0) } }
     set {
-      guard let newValue else { return }
+      guard let newValue, let casePath else { return }
       Self._set(into: &self, casePath.embed(newValue.value))
     }
   }
