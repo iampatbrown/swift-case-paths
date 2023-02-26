@@ -60,4 +60,41 @@ final class CaseAccessibleTests: XCTestCase {
 //    foo[/Foo.foo] = .none // 🛑 forbidden by the compiler
 //    foo[/Foo.foo] = nil as Foo? // 🛑 forbidden by the compiler
   }
+  
+  func testOptionalPath() {
+    enum Foo: Equatable, CaseAccessible {
+      case bar(Bar)
+      case baz(Baz)
+    }
+    
+    enum Bar: Equatable, CaseAccessible {
+      case baz(Baz)
+    }
+    
+    enum FizzBuzz: Equatable, CaseAccessible {
+      case fizz(Int)
+      case buzz(Int)
+    }
+    
+    struct Baz: Equatable { var array: [FizzBuzz] = [.fizz(42), .buzz(1729)] }
+    
+    struct State { var foo: Foo? }
+    
+    var state = State(foo: .bar(.baz(Baz())))
+    
+    XCTAssertEqual(state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.fizz], 42)
+    XCTAssertNil(state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.buzz])
+    XCTAssertEqual(state.foo?[/Foo.bar]?[/Bar.baz]?.array[1][/FizzBuzz.buzz], 1729)
+    XCTAssertNil(state.foo?[/Foo.bar]?[/Bar.baz]?.array[1][/FizzBuzz.fizz])
+    
+    state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.fizz] = 4104
+    XCTAssertEqual(state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.fizz], 4104)
+    
+    state.foo = nil
+    XCTAssertNil(state.foo?[/Foo.bar]?[/Bar.baz]?.array[1][/FizzBuzz.fizz])
+    XCTAssertNil(state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.buzz])
+    
+    state.foo?[/Foo.bar]?[/Bar.baz]?.array[0][/FizzBuzz.fizz] = 4104
+    XCTAssertNil(state.foo)
+   }
 }
