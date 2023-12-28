@@ -327,6 +327,10 @@ extension CasePathable {
     Case(keyPath).extract(from: self)
   }
 
+  public subscript<Value>(_case keyPath: KeyPath<Self.AllCasePaths, AnyCasePath<Self, Value>>) -> Value? {
+    Self.allCasePaths[keyPath: keyPath].extract(from: self)
+  }
+  
   /// Attempts to extract the associated value from a root enum using a partial case key path.
   @_disfavoredOverload
   public subscript(case keyPath: PartialCaseKeyPath<Self>) -> Any? {
