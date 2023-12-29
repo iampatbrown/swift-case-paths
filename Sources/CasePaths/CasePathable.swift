@@ -1,3 +1,4 @@
+import Foundation
 import XCTestDynamicOverlay
 
 /// A type that provides a collection of all of its case paths.
@@ -466,17 +467,30 @@ extension CasePathable {
   }
 }
 
+@usableFromInline
+let caseLock = NSLock()
+@usableFromInline
+var caseForKeyPath = [AnyKeyPath: Any]()
+
 extension AnyCasePath {
   /// Creates a type-erased case path for given case key path.
   ///
   /// - Parameter keyPath: A case key path.
   @inlinable
   public init(_ keyPath: CaseKeyPath<Root, Value>) {
-    let `case` = Case(keyPath)
-    self.init(
-      embed: { `case`.embed($0) as! Root },
-      extract: { `case`.extract(from: $0) }
-    )
+    caseLock.lock()
+    defer { caseLock.unlock() }
+
+    if let existing = caseForKeyPath[keyPath] {
+      self = existing as! AnyCasePath<Root, Value>
+    } else {
+      let `case` = Case(keyPath)
+      self.init(
+        embed: { `case`.embed($0) as! Root },
+        extract: { `case`.extract(from: $0) }
+      )
+      caseForKeyPath[keyPath] = self
+    }
   }
 }
 

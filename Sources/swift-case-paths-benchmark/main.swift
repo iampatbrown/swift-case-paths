@@ -48,6 +48,25 @@ let scope = BenchmarkSuite(name: "Scope") {
   }
 }
 
+let cachedKeyPathScope = BenchmarkSuite(name: "Cached KeyPath Scope") {
+  let keyPath1 = \One.Cases.value
+  $0.benchmark("1 Level") {
+    precondition(Scope<One, Int>(keyPath1).extract(from: one) == 1)
+  }
+  let keyPath2 = \One.Cases.two.value
+  $0.benchmark("2 Levels") {
+    precondition(Scope<One, Int>(keyPath2).extract(from: two) == 2)
+  }
+  let keyPath6 = \One.Cases.two.three.four.five.six.value
+  $0.benchmark("6 Levels") {
+    precondition(Scope<One, Int>(keyPath6).extract(from: six) == 6)
+  }
+  let keyPath7 = \One.Cases.two.three.four.five.six.seven.value
+  $0.benchmark("7 Levels") {
+    precondition(Scope<One, Int>(keyPath7).extract(from: seven) == 7)
+  }
+}
+
 let cachedScope = BenchmarkSuite(name: "Cached Scope") {
   let scope1 = Scope<One, Int>(\.value)
   $0.benchmark("1 Level") {
@@ -103,6 +122,7 @@ let cachedScope = BenchmarkSuite(name: "Cached Scope") {
 
 Benchmark.main([
   scope,
+  cachedKeyPathScope,
   cachedScope,
 ])
 #endif
