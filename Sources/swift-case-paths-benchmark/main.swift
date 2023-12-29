@@ -1,54 +1,86 @@
-#if swift(<5.9)
-  import Benchmark
-  import CasePaths
+#if swift(>=5.9)
+import Benchmark
+import CasePaths
 
-  enum Enum {
-    case associatedValue(Int)
-    case anotherAssociatedValue(String)
+@CasePathable
+enum One { case two(Two), value(Int), anotherValue(String) }
+@CasePathable
+enum Two { case three(Three), value(Int), anotherValue(String) }
+@CasePathable
+enum Three { case four(Four), value(Int), anotherValue(String) }
+@CasePathable
+enum Four { case five(Five), value(Int), anotherValue(String) }
+@CasePathable
+enum Five { case six(Six), value(Int), anotherValue(String) }
+@CasePathable
+enum Six { case seven(Seven), value(Int), anotherValue(String) }
+@CasePathable
+enum Seven { case value(Int), anotherValue(String) }
+
+let one = One.value(1)
+let two = One.two(.value(2))
+let six = One.two(.three(.four(.five(.six(.value(6))))))
+let seven = One.two(.three(.four(.five(.six(.seven(.value(7)))))))
+
+struct Scope<Root, Value> {
+  let toValue: AnyCasePath<Root, Value>
+  init(_ toValue: CaseKeyPath<Root, Value>) {
+    self.toValue = AnyCasePath(toValue)
   }
 
-  let enumCase = Enum.associatedValue(42)
-  let anotherCase = Enum.anotherAssociatedValue("Blob")
-
-  let manual = AnyCasePath(
-    embed: Enum.associatedValue,
-    extract: {
-      guard case let .associatedValue(value) = $0 else { return nil }
-      return value
-    }
-  )
-  let reflection: AnyCasePath<Enum, Int> = /Enum.associatedValue
-
-  let success = BenchmarkSuite(name: "Success") {
-    $0.benchmark("Manual") {
-      precondition(manual.extract(from: enumCase) == 42)
-    }
-
-    $0.benchmark("Reflection") {
-      precondition(reflection.extract(from: enumCase) == 42)
-    }
-
-    $0.benchmark("Reflection (uncached)") {
-      precondition((/Enum.associatedValue).extract(from: enumCase) == 42)
-    }
+  func extract(from root: Root) -> Value? {
+    toValue.extract(from: root)
   }
+}
 
-  let failure = BenchmarkSuite(name: "Failure") {
-    $0.benchmark("Manual") {
-      precondition(manual.extract(from: anotherCase) == nil)
-    }
-
-    $0.benchmark("Reflection") {
-      precondition(reflection.extract(from: anotherCase) == nil)
-    }
-
-    $0.benchmark("Reflection (uncached)") {
-      precondition((/Enum.associatedValue).extract(from: anotherCase) == nil)
-    }
+let scope = BenchmarkSuite(name: "Scope") {
+  $0.benchmark("1 Level") {
+    precondition(Scope<One, Int>(\.value).extract(from: one) == 1)
   }
+  $0.benchmark("2 Levels") {
+    precondition(Scope<One, Int>(\.two.value).extract(from: two) == 2)
+  }
+  $0.benchmark("6 Levels") {
+    precondition(Scope<One, Int>(\.two.three.four.five.six.value).extract(from: six) == 6)
+  }
+  $0.benchmark("7 Levels") {
+    precondition(Scope<One, Int>(\.two.three.four.five.six.seven.value).extract(from: seven) == 7)
+  }
+}
 
-  Benchmark.main([
-    success,
-    failure,
-  ])
+let cachedScope = BenchmarkSuite(name: "Cached Scope") {
+  let scope1 = Scope<One, Int>(\.value)
+  $0.benchmark("1 Level") {
+    precondition(scope1.extract(from: one) == 1)
+  }
+  let scope2 = Scope<One, Int>(\.two.value)
+  $0.benchmark("2 Levels") {
+    precondition(scope2.extract(from: two) == 2)
+  }
+  let scope6 = Scope<One, Int>(\.two.three.four.five.six.value)
+  $0.benchmark("6 Levels") {
+    precondition(scope6.extract(from: six) == 6)
+  }
+  let scope7 = Scope<One, Int>(\.two.three.four.five.six.seven.value)
+  $0.benchmark("7 Levels") {
+    precondition(scope7.extract(from: seven) == 7)
+  }
+}
+
+// Initial Results
+// name                  time        std        iterations
+// -------------------------------------------------------
+// Scope.1 Level         1667.000 ns ±  31.14 %     785038
+// Scope.2 Levels        2667.000 ns ±  24.20 %     496770
+// Scope.6 Levels        7209.000 ns ±   6.44 %     192067
+// Scope.7 Levels        8333.000 ns ±   5.75 %     166795
+// Cached Scope.1 Level   416.000 ns ±  26.03 %    1000000
+// Cached Scope.2 Levels  750.000 ns ±  16.37 %    1000000
+// Cached Scope.6 Levels 2333.000 ns ±   9.26 %     597589
+// Cached Scope.7 Levels 2708.000 ns ±   6.36 %     513418
+
+Benchmark.main([
+  scope,
+  cachedScope,
+])
 #endif
