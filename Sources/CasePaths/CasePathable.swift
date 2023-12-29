@@ -49,8 +49,10 @@ public protocol CasePathable {
   @_documentation(visibility:internal)
   @dynamicMemberLookup
   public struct Case<Value> {
-    fileprivate let _embed: (Value) -> Any
-    fileprivate let _extract: (Any) -> Value?
+    @usableFromInline
+    let _embed: (Value) -> Any
+    @usableFromInline
+    let _extract: (Any) -> Value?
   }
 #else
   @dynamicMemberLookup
@@ -61,6 +63,7 @@ public protocol CasePathable {
 #endif
 
 extension Case {
+  @inlinable
   public init<Root>(
     embed: @escaping (Value) -> Root,
     extract: @escaping (Root) -> Value?
@@ -69,14 +72,17 @@ extension Case {
     self._extract = { ($0 as? Root).flatMap(extract) }
   }
 
+  @inlinable
   public init() {
     self.init(embed: { $0 }, extract: { $0 })
   }
 
+  @inlinable
   public init<Root>(_ keyPath: CaseKeyPath<Root, Value>) {
     self = Case<Root>()[keyPath: keyPath]
   }
 
+  @inlinable
   public subscript<AppendedValue>(
     dynamicMember keyPath: KeyPath<Value.AllCasePaths, AnyCasePath<Value, AppendedValue>>
   ) -> Case<AppendedValue>
@@ -88,10 +94,12 @@ extension Case {
     )
   }
 
+  @inlinable
   public func embed(_ value: Value) -> Any {
     self._embed(value)
   }
 
+  @inlinable
   public func extract(from root: Any) -> Value? {
     self._extract(root)
   }
@@ -462,6 +470,7 @@ extension AnyCasePath {
   /// Creates a type-erased case path for given case key path.
   ///
   /// - Parameter keyPath: A case key path.
+  @inlinable
   public init(_ keyPath: CaseKeyPath<Root, Value>) {
     let `case` = Case(keyPath)
     self.init(
