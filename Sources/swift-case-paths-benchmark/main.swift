@@ -79,6 +79,16 @@ let cachedScope = BenchmarkSuite(name: "Cached Scope") {
 // Cached Scope.6 Levels 2333.000 ns ±   9.26 %     597589
 // Cached Scope.7 Levels 2708.000 ns ±   6.36 %     513418
 
+// Hoist case initializer
+// Scope.1 Level         1667.000 ns ±  13.60 %     818973
+// Scope.2 Levels        2708.000 ns ±  13.19 %     515329
+// Scope.6 Levels        7375.000 ns ±   4.61 %     188746
+// Scope.7 Levels        8541.000 ns ±   3.98 %     163764
+// Cached Scope.1 Level   209.000 ns ±  33.45 %    1000000
+// Cached Scope.2 Levels  375.000 ns ±  14.51 %    1000000
+// Cached Scope.6 Levels 1000.000 ns ±  10.41 %    1000000
+// Cached Scope.7 Levels 1208.000 ns ±   9.89 %    1000000
+
 Benchmark.main([
   scope,
   cachedScope,

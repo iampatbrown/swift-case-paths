@@ -81,9 +81,10 @@ extension Case {
     dynamicMember keyPath: KeyPath<Value.AllCasePaths, AnyCasePath<Value, AppendedValue>>
   ) -> Case<AppendedValue>
   where Value: CasePathable {
-    Case<AppendedValue>(
-      embed: { self.embed(Value.allCasePaths[keyPath: keyPath].embed($0)) },
-      extract: { self.extract(from: $0).flatMap(Value.allCasePaths[keyPath: keyPath].extract) }
+    let `case` = Value.allCasePaths[keyPath: keyPath]
+    return Case<AppendedValue>(
+      embed: { self.embed(`case`.embed($0)) },
+      extract: { self.extract(from: $0).flatMap(`case`.extract) }
     )
   }
 
